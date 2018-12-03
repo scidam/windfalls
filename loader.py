@@ -3,15 +3,21 @@
 import numpy as np
 from functools import lru_cache
 import re
-
-from .conf import DATA_PATTERNS, PREDICTOR_LOADERS, LARGE_VALUE
+import os
 from osgeo import gdal
 from osgeo import osr
 from shapely.ops import cascaded_union
 import geopandas as gpd
 from shapely.geometry import Point
 
+aux = ['CJ', 'DJ', 'DK']
+LARGE_VALUE = 500
+COMMON_PATH = './19_09_2017/Scene%s/'
+FILE_PAT = "T55T{}_20170919T010641_B{:02}.jp2_Cnv.tif"
+scenes = [1,2,3]
+layers = range(1, 13)
 
+DATA_PATTERNS = [[os.path.join(COMMON_PATH % s, FILE_PAT.format(aux[s - 1], l)) for s in scenes] for l in layers]
 
 def load_shp_file(filename='winds.shp'):
     data = gpd.read_file(filename)
@@ -67,176 +73,51 @@ def array_to_raster(array, lats, lons,  fname):
 def get_data_by_coordinate_np(lats, lons, array, xmin, xres, ymax, yres):
     lat_inds = ((lats - ymax) / yres).astype(np.int16)
     lon_inds = ((lons - xmin) / xres).astype(np.int16)
-    array = array[lat_inds, lon_inds]
-    array[np.abs(array) > LARGE_VALUE] = np.nan
-    return array
+    lat_ind_max, lon_ind_max = array.shape
+    mask_lat = (lat_inds >= 0) & (lat_inds <= lat_ind_max)
+    mask_lon = (lon_inds >= 0) & (lon_inds <= lon_ind_max)
+    latitudes = np.arange(ymax, ymax - lat_ind_max * yres, -yres)
+    longitudes = np.arange(xmin, xmin + lon_ind_max * xres, xres)
+    LA, LO = np.meshgrid(latitudes, longitudes)
+    _res = array[lat_inds[mask_lat], lon_inds[mask_lon]]
+    _LA = LA[lat_inds[mask_lat], lon_inds[mask_lon]]
+    _LO = LO[lat_inds[mask_lat], lon_inds[mask_lon]]
+    _res[np.abs(_res) > LARGE_VALUE] = np.nan
+    return (array, _LA, _LO)
 
 
-def get_array(level):
-    data = gdal.Open(DATA_PATTERNS[])
-    geoinfo = data.GetGeoTransform()
+def get_arrays(level):
+    result = list()
+    for f in DATA_PATTERNS[level - 1]:
+        data = gdal.Open(f)
+        print(data.GetGeoTransform())
+        if osr.SpatialReference(data.GetProjection()).IsProjected():
+            geoinfo = data.GetGeoTransform()
     xmin = geoinfo[0]
     xres = geoinfo[1]
     ymax = geoinfo[3]
     yrot = geoinfo[4]
     xrot = geoinfo[2]
     yres = geoinfo[-1]
-    if not np.isclose(xrot, 0) or not np.isclose(yrot, 0):
-        raise BaseException("xrot and yrot should be 0")
-    array = data.ReadAsArray()
-    del data
-    return array
+    for f in DATA_PATTERNS[level - 1]:
+        data = gdal.Open(f)
+        if not np.isclose(xrot, 0) or not np.isclose(yrot, 0):
+            raise BaseException("xrot and yrot should be 0")
+        array = data.ReadAsArray()
+        del data
+        result.append((array, xmin, xres, ymax, yres))
+    return result
 
 
 def get_data(lats, lons, levels):
     result = []
     for l in levels:
-        array = get_array(l)
+        array, xmin, xres, ymax, yres = get_arrays(l)
         result.append(get_data_by_coordinate_np(np.array(lats, dtype=np.float64),
                                   np.array(lons, dtype=np.float64),
                                   np.array(array, dtype=np.float64),
                                   xmin, xres, ymax, yres))
     return result
-
-
-
-
-
-
-def get_avg_temperature(lats, lons, name, postfix=''):
-    if postfix:
-        month = re.findall(r'(\d+)', name)[0]
-        vals_min = get_bio_data(lats, lons, 'TMIN' + month + postfix)
-        vals_max = get_bio_data(lats, lons, 'TMAX' + month + postfix)
-        return 0.5 * (vals_min + vals_max)
-    else:
-        return get_bio_data(lats, lons, name)
-
-
-def get_kiras_indecies(lats, lons, name, postfix=''):
-    '''Retruns the Family of Kira's indecies.
-    '''
-    if 'WKI' in name:
-        t = 10.0 * float(name.replace('WKI', ''))
-    elif 'CKI' in name:
-        t = -10.0 * float(name.replace('CKI', '')) # needs to be checked for correctness !!!
-    else:
-        raise BaseException("Illegal name of Kira's index")
-    result = np.zeros(np.shape(lats))
-    mask = result.copy().astype(np.bool)
-    if t >= 0:
-        # Warm indecies
-        for k in range(1, 13):
-            vals = get_avg_temperature(lats, lons, name='TAVG' + str(k), postfix=postfix)
-            result[vals > t] = result[vals > t] + vals[vals > t] - t
-            mask += np.isnan(vals)
-    else:
-        # Cold indecies
-        for k in range(1, 13):
-            vals = get_avg_temperature(lats, lons, name='TAVG' + str(k), postfix=postfix)
-            result[vals < t] = result[vals < t] + vals[vals < t] - t
-            mask += np.isnan(vals)
-        result = -result
-    result[mask] = np.nan
-    return result
-
-
-def get_precipitation_kiras(lats, lons, name, postfix=''):
-    '''Returns Kira's based indecies of precipitation amount
-    '''
-    if 'PWKI' in name:
-        t = float(name.replace('PWKI', ''))
-    elif 'PCKI' in name:
-        t = -float(name.replace('PCKI', ''))
-    else:
-        raise BaseException("Illegal name of Kira's index")
-    result = np.zeros(np.shape(lats))
-    mask = result.copy().astype(np.bool)
-    if 'PWKI' in name:
-        for k in range(1, 13):
-            vals = get_avg_temperature(lats, lons, name='TAVG' + str(k), postfix=postfix)
-            if np.any(vals > t):
-                precs = get_bio_data(lats, lons, name='PREC' + str(k) + postfix)
-                result[vals > t] = result[vals > t] + precs[vals > t]
-                mask += np.isnan(precs)
-    else:
-        for k in range(1, 13):
-            vals = get_avg_temperature(lats, lons, name='TAVG' + str(k), postfix=postfix)
-            if np.any(vals < t):
-                precs = get_bio_data(lats, lons, name='PREC' + str(k) + postfix)
-                result[vals < t] = result[vals < t] + precs[vals < t]
-                mask += np.isnan(precs)
-    result[mask] = np.nan
-    return result
-
-
-def get_extreme_temperatures(lats, lons, name, postfix=''):
-    if name == 'TMINM':
-        func = np.minimum
-    elif name == 'TMAXM':
-        func = np.maximum
-    result = np.zeros(np.shape(lats))
-    mask = result.copy().astype(np.bool)
-    for k in range(1, 13):
-        vals = get_avg_temperature(lats, lons, name='TAVG' + str(k), postfix=postfix)
-        result = func(result, vals)
-        mask += np.isnan(vals)
-    result[mask] = np.nan
-    return result
-
-def get_IC(lats, lons, name, postfix):
-    vals_min = get_extreme_temperatures(lats, lons, 'TMINM', postfix=postfix)
-    vals_max = get_extreme_temperatures(lats, lons, 'TMAXM', postfix=postfix)
-    return vals_max - vals_min
-
-
-def get_EXTCM(lats, lons, name, postfix=''):
-    if 'TMAX' in name:
-        t = 'TMAX'
-    else:
-        t = 'TMIN'
-    result = np.zeros(np.shape(lats))
-    mask = result.copy().astype(np.bool)
-    result = get_bio_data(lats, lons, name=t + '1' + postfix)
-    vals_avg = get_avg_temperature(lats, lons, name='TAVG1', postfix=postfix)
-    for k in range(2, 13):
-        _ = get_avg_temperature(lats, lons, name='TAVG' + str(k), postfix=postfix)
-        inds = _ < vals_avg
-        vals_max = get_bio_data(lats, lons, name=t + str(k) + postfix)
-        result[inds] =  vals_max[inds]
-        mask += np.isnan(vals_max)
-    result[mask] = np.nan
-    return result
-
-
-def get_IT(lats, lons, name, postfix=''):
-    tmin = get_EXTCM(lats, lons, "TMINCM", postfix=postfix)
-    tmax = get_EXTCM(lats, lons, 'TMAXCM', postfix=postfix)
-    tavg = get_bio_data(lats, lons, 'BIO1' + postfix)
-    return tmin + tmax + tavg
-
-def get_IO(lats, lons, name, postfix=''):
-    prec_warm = get_precipitation_kiras(lats, lons, 'PWKI0', postfix=postfix)
-    prec_cold = get_precipitation_kiras(lats, lons, 'PCKI0', postfix=postfix)
-    return prec_warm / prec_cold
-
-
-def get_predictor_data(lats, lons, name='BIO1', postfix=''):
-    '''
-    Extract data for specified latitudes and longitudes;
-    '''
-    if name not in PREDICTOR_LOADERS:
-        raise BaseException("Couldn't find registered extractor function for this name: %s" % name)
-
-    if PREDICTOR_LOADERS[name] in globals():
-        try:
-            result = globals()[PREDICTOR_LOADERS[name]](lats, lons, name, postfix=postfix)
-        except TypeError:
-            result = globals()[PREDICTOR_LOADERS[name]](lats, lons, name+postfix)
-        finally:
-            return result
-    else:
-        raise BaseException("The method for computation of %s isn't defined" % name)
 
 
 
