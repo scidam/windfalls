@@ -11,14 +11,21 @@ from shapely.ops import cascaded_union
 import geopandas as gpd
 from shapely.geometry import Point
 
+# aux = ['CJ', 'DJ', 'DK']
+# LARGE_VALUE = 500
+# COMMON_PATH = './Sentinel2/19.09.2017/Scene%s/'
+# FILE_PAT = "T55T{}_20170919T010641_B{:02}.jp2_Cnv.tif"
+# scenes = [1,2,3]
+# layers = range(1, 13)
+
 aux = ['CJ', 'DJ', 'DK']
 LARGE_VALUE = 500
-COMMON_PATH = './Sentinel2/19.09.2017/Scene%s/'
-FILE_PAT = "T55T{}_20170919T010641_B{:02}.jp2_Cnv.tif"
+COMMON_PATH = './data/imgs/'
+FILE_PAT = "T55T{}_20170919T010641_B{:02}.jp2"
 scenes = [1,2,3]
 layers = range(1, 13)
 
-DATA_PATTERNS = [[os.path.join(COMMON_PATH % s, FILE_PAT.format(aux[s - 1], l)) for s in scenes] for l in layers]
+DATA_PATTERNS = [[os.path.join(COMMON_PATH, FILE_PAT.format(aux[s - 1], l)) for s in scenes] for l in layers]
 
 def load_shp_file(filename='winds.shp'):
     data = gpd.read_file(filename)
@@ -81,8 +88,12 @@ def get_data_by_coordinate_np(lats, lons, array, xmin, xres, ymax, yres):
     mask_lon = (lon_inds >= 0) & (lon_inds <= lon_ind_max)
     full_mask = mask_lat & mask_lon
     _res = array[lat_inds[full_mask], lon_inds[full_mask]]
-    _res[np.abs(_res) > LARGE_VALUE] = np.nan
-    return (_res, lats[full_mask], lons[full_mask])
+    num = len(lats[~full_mask])
+    values = np.empty(num)
+    values[:] = np.nan
+    return (np.hstack([_res, values]),
+            np.hstack([lats[full_mask], lats[~full_mask]]),
+            np.hstack([lons[full_mask], lons[~full_mask]]))
 
 
 def get_arrays(level):
@@ -95,6 +106,7 @@ def get_arrays(level):
             geoinfo = (399960.0, 10.0, 0.0, 4900020.0, 0.0, -10.0)
         else:
             geoinfo = data.GetGeoTransform()
+        print(geoinfo)
         xmin = geoinfo[0]
         xres = geoinfo[1]
         ymax = geoinfo[3]
@@ -132,15 +144,13 @@ def get_data(lats, lons, levels):
             _b = np.append(_b, b)
             _c = np.append(_c, c)
         aux = pd.DataFrame({'data': _a, 'lat': _b, 'lon': _c})
+        aux_data = aux.loc[~pd.isnull(aux.data), :]
+        aux_nodata = aux.loc[pd.isnull(aux.data), :]
+        aux_data = aux_data.drop_duplicates(['lat', 'lon'])
+        aux_nodata = aux_nodata.drop_duplicates(['lat', 'lon'])
+        aux = pd.concat([aux_data, aux_nodata], axis=0)
         aux.drop_duplicates(['lat', 'lon'], inplace=True)
-        aux.loc[:, 'special'] = aux.lat.astype(int).apply(str) + aux.lon.astype(int).apply(str)
-        print(aux)
-        aux.sort_values('special', inplace=True, ascending=False)
-        print(aux)
-        aux = aux.iloc[np.argsort(aux.special.values), :]
-        print(aux)
-        print([str(a)+str(b) for a,b in zip(lats, lons)])
-        aux = aux.iloc[np.argsort([str(a)+str(b) for a,b in zip(lats, lons)]),:]
+        aux.sort_values(by=['lon', 'lat'], inplace=True)
         result.append([aux.data.values, aux.lat.values, aux.lon.values])
     return result
 
