@@ -5,3 +5,4 @@ data
 tiff_new
 .python-version
 __pycache__
+masked

@@ -7,76 +7,33 @@ import re
 import os
 from osgeo import gdal
 from osgeo import osr
-from shapely.ops import cascaded_union
+from shapely.ops import cascaded_union, unary_union
 import geopandas as gpd
-from shapely.geometry import Point
-
-# aux = ['CJ', 'DJ', 'DK']
-# LARGE_VALUE = 500
-# COMMON_PATH = './Sentinel2/19.09.2017/Scene%s/'
-# FILE_PAT = "T55T{}_20170919T010641_B{:02}.jp2_Cnv.tif"
-# scenes = [1,2,3]
-# layers = range(1, 13)
-
-aux = ['CJ', 'DJ', 'DK']
-LARGE_VALUE = 500
-COMMON_PATH = './data/imgs/'
-FILE_PAT = "T55T{}_20170919T010641_B{:02}.jp2"
-scenes = [1,2,3]
-layers = range(1, 13)
-
-DATA_PATTERNS = [[os.path.join(COMMON_PATH, FILE_PAT.format(aux[s - 1], l)) for s in scenes] for l in layers]
-
-def load_shp_file(filename='winds.shp'):
-    data = gpd.read_file(filename)
-    polygon = cascaded_union(data.geometry)
-    return polygon
-
-def build_mask_data(minx, maxx, miny, maxy, dx=1, dy=1):
-    xdata = np.arange(minx, maxx, dx)
-    ydata = np.arange(miny, maxy, dy)
-    X, Y = np.meshgrid(xdata, ydata)
-    series = gpd.GeoSeries([Point(x, y) for x, y in zip(X.ravel(), Y.ravel())])
-    polygon = load_shp_file()
-    return series.intersects(polygon)
+from conf import DATA_PATTERNS
 
 
-def array_to_raster(array, lats, lons,  fname):
-    """Array > Raster
-    Save a raster from a C order array.
 
-    :param array: ndarray
+def load_shp_file(filename='./winds/data-polygon.shp'):
+    """Loads shape file
+
+    This function is used to generate masked array that represents
+    regions of interest.
+
+    NOTE: cascaded_union isn't working due to some geos-lib issues
+    (use unary_union instead)
     """
-    # You need to get those values like you did.
-
-    SourceDS = gdal.Open(DATA_PATTERNS['BIO1']['filename'], gdal.GA_ReadOnly)
-    Projection = osr.SpatialReference()
-    Projection.ImportFromWkt(SourceDS.GetProjectionRef())
-    x_pixels, y_pixels = array.shape
-    XPIXEL_SIZE = (lons[1] - lons[0]) / float(x_pixels)
-    YPIXEL_SIZE = (lats[1] - lats[0]) / float(y_pixels)
-    x_min = np.min(lons)
-    y_max = np.max(lats)
-    driver = gdal.GetDriverByName('GTiff')
-    dataset = driver.Create(
-        fname,
-        y_pixels,
-        x_pixels,
-        1,
-        gdal.GDT_Float32)
-
-    dataset.SetGeoTransform((
-        x_min,    # 0
-        abs(XPIXEL_SIZE),  # 1
-        0,                      # 2
-        y_max,    # 3
-        0,                      # 4
-        -abs(YPIXEL_SIZE)))
-    dataset.SetProjection(Projection.ExportToWkt())
-    dataset.GetRasterBand(1).WriteArray(array)
-    dataset.FlushCache()  # Write to disk.
-    return 0
-
+    data = gpd.read_file(filename)
+    gg = data.geometry.iloc[0]
+    if not gg.is_valid:
+        gg = gg.buffer(1)
+    for g in data.geometry.iloc[1:]:
+        if not g.is_valid:
+            _g = g.buffer(1)
+        else:
+            _g = g
+        gg = unary_union([gg, _g])
+    polygon = gg
+    return polygon
 
 def get_data_by_coordinate_np(lats, lons, array, xmin, xres, ymax, yres):
     lat_inds = ((lats - ymax) / yres).astype(np.int16)
@@ -100,13 +57,7 @@ def get_arrays(level):
     result = list()
     for f in DATA_PATTERNS[level - 1]:
         data = gdal.Open(f)
-        if  'T55TDK_20170919T010641_B03.jp2_Cnv.tif' in f:
-            geoinfo = (399960.0, 10.0, 0.0, 5000040.0, 0.0, -10.0)
-        elif 'T55TDJ_20170919T010641_B04.jp2_Cnv.tif' in f:
-            geoinfo = (399960.0, 10.0, 0.0, 4900020.0, 0.0, -10.0)
-        else:
-            geoinfo = data.GetGeoTransform()
-        print(geoinfo)
+        geoinfo = data.GetGeoTransform()
         xmin = geoinfo[0]
         xres = geoinfo[1]
         ymax = geoinfo[3]
@@ -121,12 +72,16 @@ def get_arrays(level):
     return result
 
 
-def list_all_info():
-    '''Auxiliry function: it doesn't used in the computational process'''
+def load_list_all_info():
+    """Auxiliary function: it doesn't used in the computational process
+
+    """
+
     for f in sum(DATA_PATTERNS, []):
         data = gdal.Open(f)
         geoinfo = data.GetGeoTransform()
         print(f, geoinfo)
+
 
 
 def get_data(lats, lons, levels):
