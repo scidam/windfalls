@@ -129,10 +129,12 @@ def generate_train_test(levels):
                                   y : y + SLIDING_WINDOW_SIZE], sat_layers)
             prepared_mask = mask[x:x+SLIDING_WINDOW_SIZE, y:y+SLIDING_WINDOW_SIZE]
             image_num += 1
-            layer = np.dstack(map(lambda x: x / np.max(x) * 255.0, prepared_layers)).astype(int)
+            layer = np.dstack(prepared_layers)
             print(prepared_mask.shape, layer.shape, image_num)
             if prepared_mask.any():
                 plt.imshow(np.flipud(layer), cmap=cm.hsv)
+                print(layer)
+                asd
                 plt.imshow(np.flipud(prepared_mask), alpha=0.5)
                 plt.show()
 

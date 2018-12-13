@@ -106,7 +106,9 @@ def get_data(lats, lons, levels):
         aux = pd.concat([aux_data, aux_nodata], axis=0)
         aux.drop_duplicates(['lat', 'lon'], inplace=True)
         aux.sort_values(by=['lon', 'lat'], inplace=True)
-        result.append([aux.data.values, aux.lat.values, aux.lon.values])
+        vals = aux.data.values
+        print("Max val is ", np.nanmax(vals), np.nanmedian(vals), np.nanmean(vals), np.nanmin(vals))
+        result.append([(vals / np.nanmax(vals) * 255.0).astype(int), aux.lat.values, aux.lon.values])
     return result
 
 
