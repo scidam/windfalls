@@ -7,8 +7,10 @@ from shapely.ops import unary_union
 from shapely.geometry import Point
 from conf import *
 from skimage import transform, img_as_uint
+from skimage.io import imsave
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from skimage import exposure
 
 
 def array_to_raster(array, lats, lons,  fname):
@@ -53,7 +55,7 @@ def build_mask_data(minx, maxx, miny, maxy, dx=10, dy=10):
     LA, LO = np.meshgrid(lats, lons)
     series = gpd.GeoSeries([Point(y, x) for x, y in zip(LA.ravel(), LO.ravel())])
     polygon = load_shp_file()
-    return series.intersects(polygon).values.reshape(LA.shape).T, LA, LO
+    return 255 * series.intersects(polygon).values.astype(int).reshape(LA.shape).T, LA, LO
 
 
 def get_mask_data():
@@ -118,27 +120,19 @@ def crop_the_island(img, lats, lons):
 def generate_train_test(levels):
     mask, lats, lons = get_mask_data()
     sat_data = get_data(lats.ravel(), lons.ravel(), levels)
-    sat_layers = [item[0].reshape(lats.shape).astype(float).T for item in sat_data]
-    print("Source data are reshaped!")
+    sat_layers = [item[0].reshape(lats.shape).T for item in sat_data]
     m, n = mask.shape
     image_num = 0
-    print("All data are prepared!")
     for x in range(0, m - SLIDING_WINDOW_SIZE - 2 * SLIDING_INCREMENT, SLIDING_INCREMENT):
         for y in range(0, n - SLIDING_WINDOW_SIZE - 2 * SLIDING_INCREMENT, SLIDING_INCREMENT):
-            prepared_layers = map(lambda data: data[x : x + SLIDING_WINDOW_SIZE,
-                                  y : y + SLIDING_WINDOW_SIZE], sat_layers)
-            prepared_mask = mask[x:x+SLIDING_WINDOW_SIZE, y:y+SLIDING_WINDOW_SIZE]
-            image_num += 1
+            prepared_layers = map(lambda x: exposure.equalize_adapthist(x, clip_limit=0.03)
+                                  ,map(lambda data: data[x : x + SLIDING_WINDOW_SIZE,
+                                  y : y + SLIDING_WINDOW_SIZE], sat_layers))
+            prepared_mask = mask[x:x + SLIDING_WINDOW_SIZE, y:y + SLIDING_WINDOW_SIZE]
             layer = np.dstack(prepared_layers)
-            print(prepared_mask.shape, layer.shape, image_num)
-            if prepared_mask.any():
-                plt.imshow(np.flipud(layer), cmap=cm.hsv)
-                print(layer)
-                asd
-                plt.imshow(np.flipud(prepared_mask), alpha=0.5)
-                plt.show()
-
-
+            imsave(os.path.join(IMAGES_PATH, str(image_num) + '.png'), np.flipud(layer))
+            imsave(os.path.join(LABELS_PATH, str(image_num) + '.png'), np.flipud(prepared_mask))
+            image_num += 1
 
 
 

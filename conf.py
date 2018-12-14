@@ -22,7 +22,7 @@ TRAIN_WINDOW = [396507, 409668, 4861753, 4874657]
 
 COMM_TRAIN_PATH = './data/train'
 IMAGES = 'images'
-LABELS =  'labels'
+LABELS = 'labels'
 
 MASK_DX_DY = 10
 MASKED_PATH = './masked/data.npy'
