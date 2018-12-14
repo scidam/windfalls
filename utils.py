@@ -120,14 +120,13 @@ def crop_the_island(img, lats, lons):
 def generate_train_test(levels):
     mask, lats, lons = get_mask_data()
     sat_data = get_data(lats.ravel(), lons.ravel(), levels)
-    sat_layers = [item[0].reshape(lats.shape).T for item in sat_data]
+    sat_layers = [exposure.equalize_adapthist(item[0].reshape(lats.shape).T, clip_limit=0.03) for item in sat_data]
     m, n = mask.shape
     image_num = 0
-    for x in range(0, m - SLIDING_WINDOW_SIZE - 2 * SLIDING_INCREMENT, SLIDING_INCREMENT):
-        for y in range(0, n - SLIDING_WINDOW_SIZE - 2 * SLIDING_INCREMENT, SLIDING_INCREMENT):
-            prepared_layers = map(lambda x: exposure.equalize_adapthist(x, clip_limit=0.03)
-                                  ,map(lambda data: data[x : x + SLIDING_WINDOW_SIZE,
-                                  y : y + SLIDING_WINDOW_SIZE], sat_layers))
+    for x in range(0, m - SLIDING_WINDOW_SIZE, SLIDING_INCREMENT):
+        for y in range(0, n - SLIDING_WINDOW_SIZE, SLIDING_INCREMENT):
+            prepared_layers = map(lambda data: data[x : x + SLIDING_WINDOW_SIZE,
+                                  y : y + SLIDING_WINDOW_SIZE], sat_layers)
             prepared_mask = mask[x:x + SLIDING_WINDOW_SIZE, y:y + SLIDING_WINDOW_SIZE]
             layer = np.dstack(prepared_layers)
             imsave(os.path.join(IMAGES_PATH, str(image_num) + '.png'), np.flipud(layer))
