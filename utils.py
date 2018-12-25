@@ -13,15 +13,14 @@ import matplotlib.cm as cm
 from skimage import exposure
 
 
-def array_to_raster(array, lats, lons,  fname):
+def array_to_raster(array, lats, lons, asdatafile, fname):
     """Array > Raster
     Save a raster from a C order array.
 
     :param array: ndarray
     """
-    # You need to get those values like you did.
 
-    SourceDS = gdal.Open(DATA_PATTERNS['BIO1']['filename'], gdal.GA_ReadOnly)
+    SourceDS = gdal.Open(asdatafile, gdal.GA_ReadOnly)
     Projection = osr.SpatialReference()
     Projection.ImportFromWkt(SourceDS.GetProjectionRef())
     x_pixels, y_pixels = array.shape
@@ -46,6 +45,8 @@ def array_to_raster(array, lats, lons,  fname):
         -abs(YPIXEL_SIZE)))
     dataset.SetProjection(Projection.ExportToWkt())
     dataset.GetRasterBand(1).WriteArray(array)
+    band = dataset.GetRasterBand(1)
+    band.SetNoDataValue(-9999)
     dataset.FlushCache()  # Write to disk.
     return 0
 
