@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from skimage import exposure
 from sklearn.feature_selection import RFECV
-from conf import RF_CONF, SAT_LAYERS, RF_CONF
+from conf import RF_CONF, SAT_LAYERS
 from utils import get_mask_data, get_data
 from sklearn.model_selection import cross_val_score
 
@@ -34,8 +34,8 @@ if not any(SAT_LAYERS):
                       n_jobs=3, verbose=1)
     rfecv_clf.fit(X, Y)
     rf_clf = rfecv_clf.estimator_
-    print("Selected features are: ", rf_clf.support_)
-    features_mask = rf_clf.support_
+    print("Selected features are: ", rfecv_clf.support_)
+    features_mask = rfecv_clf.support_
 else:
     print("Training the classifier... ")
     rf_clf.fit(X, Y)
