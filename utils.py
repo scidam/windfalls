@@ -136,4 +136,11 @@ def generate_train_test(levels):
 
 
 
+def get_chunked_data(latmin, latmax, lonmin, lonmax, res, levels):
+    NRES = 50
+    lats = np.arange(4825000, 5000000, NRES)
+    lons = np.arange(357200, 495200, NRES)
+    LA, LO = np.meshgrid(lats, lons)
+
+
 

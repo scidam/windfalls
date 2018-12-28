@@ -16,7 +16,7 @@ DATA_PATTERNS = [[os.path.join(COMMON_PATH, FILE_PAT.format(AUX[s - 1], l)) for 
 
 # ------------- Building train and test datasets -------------
 TRAIN_WINDOW = [396507, 409668, 4861753, 4874657]
-             #  MIN_LON, MAX_LON, MIN_LAT, MAX_LAT
+             # MIN_LON, MAX_LON, MIN_LAT, MAX_LAT
 
 
 
@@ -33,8 +33,14 @@ IMAGES_PATH = os.path.join(COMM_TRAIN_PATH, IMAGES)
 SLIDING_WINDOW_SIZE = 256
 SLIDING_INCREMENT = 20 # the same value fo lats and lons...
 
-
+SAT_LAYERS = []
 # ------------------------------------------------------------
+
+
+# ---------------
+
+RF_CONF = {'n_estimators': 100}
+
 
 
 # ALl the window of interest
