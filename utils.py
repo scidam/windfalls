@@ -119,6 +119,8 @@ def crop_the_island(img, lats, lons):
 
 
 def generate_train_test(levels):
+    train_images = []
+    train_labels = []
     mask, lats, lons = get_mask_data()
     sat_data = get_data(lats.ravel(), lons.ravel(), levels)
     sat_layers = [exposure.equalize_adapthist(item[0].reshape(lats.shape).T, clip_limit=0.03) for item in sat_data]
@@ -130,10 +132,28 @@ def generate_train_test(levels):
                                   y : y + SLIDING_WINDOW_SIZE], sat_layers)
             prepared_mask = mask[x:x + SLIDING_WINDOW_SIZE, y:y + SLIDING_WINDOW_SIZE]
             layer = np.dstack(prepared_layers)
-            imsave(os.path.join(IMAGES_PATH, str(image_num) + '.png'), np.flipud(layer))
-            imsave(os.path.join(LABELS_PATH, str(image_num) + '.png'), np.flipud(prepared_mask))
+
+            # check if this image could be added to the train dataset
+
+            train_images.append(np.flipud(layer))
+            train_labels.append(np.flipud(prepared_mask))
+            # imsave(os.path.join(IMAGES_PATH, str(image_num) + '.png'), np.flipud(layer))
+            # imsave(os.path.join(LABELS_PATH, str(image_num) + '.png'), np.flipud(prepared_mask))
             image_num += 1
 
+    # perform filtering procedure according to ZERO_ONE_MIN_FRACTION
+    squares = np.array(list(map(lambda x: float(x.sum()) / SLIDING_WINDOW_SIZE / SLIDING_WINDOW_SIZE, train_labels)))
+    inds = np.argsort(squares)[::-1]
+    retained = list()
+    cur = squares[inds[0]]
+    for ind in inds[1:]:
+        suspect = (cur + squares[ind]) / 2.0
+        if suspect > ZERO_ONE_MIN_FRACTION:
+            retained.append(ind)
+            cur = suspect
+    for image_num, ind in enumerate(retained):
+        imsave(os.path.join(IMAGES_PATH, str(image_num) + '.png'), train_images[ind])
+        imsave(os.path.join(LABELS_PATH, str(image_num) + '.png'), train_labels[ind])
 
 
 def get_chunked_data(latmin, latmax, lonmin, lonmax, res, levels):
@@ -141,6 +161,3 @@ def get_chunked_data(latmin, latmax, lonmin, lonmax, res, levels):
     lats = np.arange(4825000, 5000000, NRES)
     lons = np.arange(357200, 495200, NRES)
     LA, LO = np.meshgrid(lats, lons)
-
-
-

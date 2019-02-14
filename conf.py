@@ -18,8 +18,6 @@ DATA_PATTERNS = [[os.path.join(COMMON_PATH, FILE_PAT.format(AUX[s - 1], l)) for 
 TRAIN_WINDOW = [396507, 409668, 4861753, 4874657]
              # MIN_LON, MAX_LON, MIN_LAT, MAX_LAT
 
-
-
 COMM_TRAIN_PATH = './data/train'
 IMAGES = 'images'
 LABELS = 'labels'
@@ -31,9 +29,11 @@ LABELS_PATH = os.path.join(COMM_TRAIN_PATH, LABELS)
 IMAGES_PATH = os.path.join(COMM_TRAIN_PATH, IMAGES)
 
 SLIDING_WINDOW_SIZE = 256
-SLIDING_INCREMENT = 20 # the same value fo lats and lons...
+SLIDING_INCREMENT = 30 # the same value fo lats and lons...
 
 SAT_LAYERS = []
+
+ZERO_ONE_MIN_FRACTION = 0.02
 # ------------------------------------------------------------
 
 
