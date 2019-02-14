@@ -22,14 +22,14 @@ COMM_TRAIN_PATH = './data/train'
 IMAGES = 'images'
 LABELS = 'labels'
 
-MASK_DX_DY = 10
+MASK_DX_DY = 50
 MASKED_PATH = './masked/data.npy'
 
 LABELS_PATH = os.path.join(COMM_TRAIN_PATH, LABELS)
 IMAGES_PATH = os.path.join(COMM_TRAIN_PATH, IMAGES)
 
 SLIDING_WINDOW_SIZE = 256
-SLIDING_INCREMENT = 30 # the same value fo lats and lons...
+SLIDING_INCREMENT = 40 # the same value fo lats and lons...
 
 SAT_LAYERS = []
 

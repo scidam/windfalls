@@ -38,18 +38,14 @@ for triple in tqdm(list(itertools.combinations(range(1, 13), 3))):
     X = np.vstack(prepared_layers).T
     X = StandardScaler().fit_transform(X)
     for model in models:
-        res = cross_val_score(model, X, y, cv=10, njobs=3)
-        logging.info("C/V score for {} is: m = {}, s = {}".format(model.__class__, np.mean(res), np.std(res)))
+        precision = cross_val_score(model, X, y, cv=10, n_jobs=3, scoring='precision')
+        recall = cross_val_score(model, X, y, cv=10, n_jobs=3, scoring='recall')
+        logging.info("C/V precision for {} is: m = {}, s = {}".format(model.__class__, np.mean(precision), np.std(precision)))
+        logging.info("C/V recall for {} is: m = {}, s = {}".format(model.__class__, np.mean(recall), np.std(recall)))
     logging.info("-" * 60)
 
 
+logging.info("=" * 80)
 
 
 
-
-
-
-
-
-
-print("Final shape is ", np.vstack(prepared_layers).T.shape)
