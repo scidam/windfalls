@@ -22,7 +22,7 @@ COMM_TRAIN_PATH = './data/train'
 IMAGES = 'images'
 LABELS = 'labels'
 
-MASK_DX_DY = 50
+MASK_DX_DY = 10
 MASKED_PATH = './masked/data.npy'
 
 LABELS_PATH = os.path.join(COMM_TRAIN_PATH, LABELS)
