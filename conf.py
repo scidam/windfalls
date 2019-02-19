@@ -4,8 +4,9 @@ import os
 
 AUX = ['CJ', 'DJ', 'DK']
 LARGE_VALUE = 500
-COMMON_PATH = './data/imgs/'
+COMMON_PATH = './data/sentinel2017/'
 FILE_PAT = "T55T{}_20170919T010641_B{:02}.jp2"
+#FILE_PAT2 = "T55T{}_20180912T011649_B{:02}.jp2"
 SCENES = [1,2,3]
 LAYERS = range(1, 13)
 
@@ -22,7 +23,7 @@ COMM_TRAIN_PATH = './data/train'
 IMAGES = 'images'
 LABELS = 'labels'
 
-MASK_DX_DY = 10
+MASK_DX_DY = 40
 MASKED_PATH = './masked/data.npy'
 
 LABELS_PATH = os.path.join(COMM_TRAIN_PATH, LABELS)

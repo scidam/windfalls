@@ -18,9 +18,9 @@ from collections import Counter
 
 logging.basicConfig(filename='result.log', filemode='w', level=logging.INFO)
 logging.info("=" * 50)
-models = [LogisticRegression(solver='liblinear'),
+models = [LogisticRegression(solver='liblinear', class_weight='balanced'),
           GaussianNB(),
-          RandomForestClassifier(n_estimators=100, random_state=10),
+          RandomForestClassifier(n_estimators=100, random_state=10, class_weight='balanced'),
           AdaBoostClassifier(DecisionTreeClassifier(max_depth=5), n_estimators=100, random_state=10)
           ] # a list om ml models to be tested
 
