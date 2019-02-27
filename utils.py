@@ -156,8 +156,45 @@ def generate_train_test(levels):
         imsave(os.path.join(LABELS_PATH, str(image_num) + '.png'), train_labels[ind])
 
 
-def get_chunked_data(latmin, latmax, lonmin, lonmax, res, levels):
-    NRES = 50
-    lats = np.arange(4825000, 5000000, NRES)
-    lons = np.arange(357200, 495200, NRES)
-    LA, LO = np.meshgrid(lats, lons)
+def get_chunked_data(latmin, latmax, lonmin, lonmax, resolution, chunksize, levels):
+    for clat in range(latmin, latmax, chunksize):
+        for clon in range(lonmin, lonmax, chunksize):
+            current_chunk_window = (clat, clat+chunksize, clon, clon+chunksize)
+            lats = np.arange(clat, clat + chunksize, resolution)
+            lons = np.arange(clon, clon + chunksize, resolution)
+            LA, LO = np.meshgrid(lats, lons)
+            sat_layers = [exposure.equalize_adapthist(item[0].reshape(LA.shape).T, clip_limit=0.03) for item in get_data(LA.ravel(), LO.ravel(), levels)]
+            image_chunk = np.flipud(np.dstack(sat_layers))
+            yield current_chunk_window, image_chunk
+
+
+def apply_func_by_chunk(func, img, chunk_size):
+    """chunk_size is given in pixels
+    """
+    n, m, d = img.shape
+    xexceeded, yexceeded = False, False
+    for y in range(0, n, chunk_size):
+        if y + chunk_size > n:
+            yexceeded = True
+        for x in range(0, m, chunk_size):
+            if x + chunk_size > m: 
+                xexceeded = True
+            if not xexceeded and not yexceeded:
+                yield func(img[y:y + chunk_size,x:x + chunk_size, :])
+                continue
+            else:
+                _ = np.zeros((chunk_size, chunk_size, d), dtype=img.dtype)
+                _[:] = np.nan
+
+            if xexceeded and not yexceeded:
+                im = img[y:y + chunk_size, x:]
+            elif not xexceeded and yexceeded:
+                im = img[y:, x:x + chunk_size]
+            else:
+                im = img[y:, x:]
+
+            _[:im.shape[0], :im.shape[1], :] = im
+            yield  func(_)
+        xexceeded = False
+        yexceeded = False
+    
