@@ -49,14 +49,15 @@ from collections import Counter
 
 
 # ---------- testing  image chunking ---------
+# f = plt.figure()
+# ind = 1
+# previous = None
+# for img in apply_func_by_chunk(lambda x: x, data.astronaut(), 220):
+#     ax = f.add_subplot(3,3,ind)
+#     ax.set_title('%s'%ind)
+#     ax.imshow(img)
+#     ind +=1 
+# plt.show()
 
-
-f = plt.figure()
-ind = 1
-previous = None
-for img in apply_func_by_chunk(lambda x: x, data.astronaut(), 220):
-    ax = f.add_subplot(3,3,ind)
-    ax.set_title('%s'%ind)
-    ax.imshow(img)
-    ind +=1 
-plt.show()
+# We're generating 
+generate_train_test([2, 3, 4])
