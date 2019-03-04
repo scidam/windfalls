@@ -177,10 +177,10 @@ def apply_func_by_chunk(func, img, chunk_size):
         if y + chunk_size > n:
             yexceeded = True
         for x in range(0, m, chunk_size):
-            if x + chunk_size > m: 
+            if x + chunk_size > m:
                 xexceeded = True
             if not xexceeded and not yexceeded:
-                yield func(img[y:y + chunk_size,x:x + chunk_size, :])
+                yield func(img[y:y + chunk_size, x:x + chunk_size, :]), img[y:y + chunk_size, x:x + chunk_size, :]
                 continue
             else:
                 _ = np.zeros((chunk_size, chunk_size, d), dtype=img.dtype)
@@ -194,7 +194,6 @@ def apply_func_by_chunk(func, img, chunk_size):
                 im = img[y:, x:]
 
             _[:im.shape[0], :im.shape[1], :] = im
-            yield  func(_)
+            yield  func(_), _
         xexceeded = False
         yexceeded = False
-    
