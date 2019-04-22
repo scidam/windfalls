@@ -43,21 +43,52 @@ from collections import Counter
 
 
 # Let us consider only the three bands!
- 
+
 #generate_train_test([2, 3, 4])
 
 
 
-# ---------- testing  image chunking ---------
-# f = plt.figure()
-# ind = 1
-# previous = None
-# for img in apply_func_by_chunk(lambda x: x, data.astronaut(), 220):
-#     ax = f.add_subplot(3,3,ind)
-#     ax.set_title('%s'%ind)
-#     ax.imshow(img)
-#     ind +=1 
-# plt.show()
+ #---------- testing  image chunking ---------
 
-# We're generating 
-generate_train_test([2, 3, 4])
+f = plt.figure()
+ind = 1
+previous = None
+
+def concat_images(imgs, ncol):
+    row = list()
+    result_image = None
+    for img in imgs:
+        row.append(img)
+        if len(row) == ncol:
+            if result_image is None:
+                result_image = np.hstack(row)
+            else:
+                result_image = np.vstack([result_image, np.hstack(row)])
+            row = list()
+    return result_image
+
+
+
+all_images = list()
+for img, _, s in apply_func_by_chunk(lambda x: x, data.astronaut(), 220):
+    ax = f.add_subplot(3, 3, ind)
+    ax.set_title('%s'%ind)
+    print("the chunk shape is ", img.shape)
+    ax.imshow(img)
+    ind +=1
+    all_images.append(img)
+
+plt.show()
+result_image = concat_images(all_images, ncol=s[1])
+print(result_image.shape)
+plt.imshow(result_image)
+plt.show()
+
+
+
+
+
+
+
+# We're generating
+# generate_train_test([2, 3, 4])

@@ -165,13 +165,15 @@ def get_chunked_data(latmin, latmax, lonmin, lonmax, resolution, chunksize, leve
             LA, LO = np.meshgrid(lats, lons)
             sat_layers = [exposure.equalize_adapthist(item[0].reshape(LA.shape).T, clip_limit=0.03) for item in get_data(LA.ravel(), LO.ravel(), levels)]
             image_chunk = np.flipud(np.dstack(sat_layers))
-            yield current_chunk_window, image_chunk
+            yield current_chunk_window, resolution,  image_chunk
 
 
 def apply_func_by_chunk(func, img, chunk_size):
     """chunk_size is given in pixels
     """
     n, m, d = img.shape
+    n_, m_ = n // chunk_size if n % chunk_size == 0 else n // chunk_size + 1,\
+             m // chunk_size if m % chunk_size == 0 else m // chunk_size + 1
     xexceeded, yexceeded = False, False
     for y in range(0, n, chunk_size):
         if y + chunk_size > n:
@@ -180,7 +182,7 @@ def apply_func_by_chunk(func, img, chunk_size):
             if x + chunk_size > m:
                 xexceeded = True
             if not xexceeded and not yexceeded:
-                yield func(img[y:y + chunk_size, x:x + chunk_size, :]), img[y:y + chunk_size, x:x + chunk_size, :]
+                yield func(img[y:y + chunk_size, x:x + chunk_size, :]), img[y:y + chunk_size, x:x + chunk_size, :], (n_, m_)
                 continue
             else:
                 _ = np.zeros((chunk_size, chunk_size, d), dtype=img.dtype)
@@ -194,6 +196,21 @@ def apply_func_by_chunk(func, img, chunk_size):
                 im = img[y:, x:]
 
             _[:im.shape[0], :im.shape[1], :] = im
-            yield  func(_), _
+            yield  func(_), _, (n_, m_)
         xexceeded = False
         yexceeded = False
+
+
+def concat_images(imgs, ncol):
+    row = list()
+    result_image = None
+    for img in imgs:
+        row.append(img)
+        if len(row) == ncol:
+            if result_image is None:
+                result_image = np.hstack(row)
+            else:
+                result_image = np.vstack([result_image, np.hstack(row)])
+            row = list()
+    return result_image
+
